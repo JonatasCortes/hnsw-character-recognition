@@ -12,7 +12,7 @@ VERDICT_BUTTON_FONT_SIZE: Final[int] = 30
 COLOR_PALETTE_HEIGHT: Final[int] = 70
 COLOR_PALETTE_SPACE_BETWEEN: Final[int] = 20
 
-ASSETS_PATH: Final[str] = "src/interface/_assets/"
+ASSETS_PATH: Final[str] = "interface/_assets/"
 TOOL_ICONS: Final[tuple[str, ...]] = ("pencil.png", "filler.png",
                                       "eraser.png", "clearer.png")
 TOOL_BUTTON_SIZE: Final[int] = 50
