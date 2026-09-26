@@ -13,6 +13,7 @@ class HnswBuilder:
         self.__node_inserter = NodeManager(self.__hnsw, max_neighbors,
                                            max_candidates)
         self.__progress: float = 0.0
+        self.__done: bool = False
 
     def build(self) -> None:
         images = extract_balanced_training_images()
@@ -26,5 +27,10 @@ class HnswBuilder:
         with self.__file_path.open(mode="w", encoding="utf-8") as file:
             json.dump(self.__hnsw, file, indent=4, ensure_ascii=False)
 
+        self.__done = True
+
     def get_progress(self) -> float:
         return self.__progress
+
+    def is_done(self) -> bool:
+        return self.__done

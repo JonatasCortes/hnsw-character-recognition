@@ -5,7 +5,7 @@ from interface._constants import DEFAULT_FONT, BASE_COLOR, HEADER_HEIGHT
 
 def build_header(width: int) -> FlexBox:
     header = FlexBox(width, HEADER_HEIGHT, color=BASE_COLOR)
-    header.add_children(Text("KNN CHARACTER RECOGNITION",
+    header.add_children(Text("HNSW CHARACTER RECOGNITION",
                              DEFAULT_FONT, "WHITE"))
     return header
 
