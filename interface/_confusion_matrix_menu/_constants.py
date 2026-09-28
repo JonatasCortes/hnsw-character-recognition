@@ -1,0 +1,94 @@
+from typing import Final
+
+from interface._constants import WINDOW_HEIGHT, WINDOW_WIDTH, HEADER_HEIGHT
+
+
+CLASS_LABELS = (
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
+    'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
+    'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'd', 'e',
+    'g', 'h', 'n', 'q', 'r', 't'
+)
+
+BODY_COLOR_LIGHTEN: Final[int] = 20
+BODY_HEIGHT: Final[int] = WINDOW_HEIGHT - HEADER_HEIGHT
+
+BODY_PADDING: Final[int] = 10
+BODY_SPACE_BETWEEN: Final[int] = 0
+
+NUM_CLASSES: Final[int] = 46
+
+CLOSE_BUTTON_SIZE: Final[int] = 20
+CLOSE_BUTTON_TEXT: Final[str] = "X"
+CLOSE_BUTTON_COLOR: Final[tuple[int, int, int]] = (227, 8, 66)
+CLOSE_BUTTON_CORNERS_RADIUS: Final[int] = 0
+CLOSE_BUTTON_FONT_SIZE: Final[int] = 15
+
+SIDEBAR_WIDTH: Final[int] = CLOSE_BUTTON_SIZE
+
+MATRIX_PANEL_PADDING: Final[int] = 12
+MATRIX_PANEL_CORNERS_RADIUS: Final[int] = 16
+MATRIX_PANEL_COLOR_LIGHTEN: Final[int] = 20
+MATRIX_HEADER_ROW_HEIGHT: Final[int] = 24
+MATRIX_LABEL_COLUMN_WIDTH: Final[int] = 34
+
+NA_PANEL_PADDING: Final[int] = 12
+NA_PANEL_CORNERS_RADIUS: Final[int] = 16
+NA_PANEL_COLOR_LIGHTEN: Final[int] = 20
+
+_CONTENT_WIDTH: Final[int] = (
+    WINDOW_WIDTH - 2 * BODY_PADDING - SIDEBAR_WIDTH - BODY_SPACE_BETWEEN
+)
+CELL_WIDTH: Final[int] = (
+    _CONTENT_WIDTH - 2 * MATRIX_PANEL_PADDING - MATRIX_LABEL_COLUMN_WIDTH
+) // NUM_CLASSES
+
+_AVAILABLE_HEIGHT: Final[int] = BODY_HEIGHT - \
+    2 * BODY_PADDING - BODY_SPACE_BETWEEN
+_FIXED_VERTICAL_SPACE: Final[int] = (
+    2 * MATRIX_PANEL_PADDING + MATRIX_HEADER_ROW_HEIGHT + 2 * NA_PANEL_PADDING
+)
+CELL_HEIGHT: Final[int] = (
+    _AVAILABLE_HEIGHT - _FIXED_VERTICAL_SPACE) // (NUM_CLASSES + 1)
+CELL_BRIGHTNESS_ON_HOVER: Final[int] = 20
+
+MATRIX_GRID_WIDTH: Final[int] = MATRIX_LABEL_COLUMN_WIDTH + \
+    NUM_CLASSES * CELL_WIDTH
+MATRIX_PANEL_WIDTH: Final[int] = MATRIX_GRID_WIDTH + 2 * MATRIX_PANEL_PADDING
+MATRIX_PANEL_HEIGHT: Final[int] = (
+    2 * MATRIX_PANEL_PADDING + MATRIX_HEADER_ROW_HEIGHT + NUM_CLASSES * CELL_HEIGHT
+)
+
+NA_PANEL_WIDTH: Final[int] = MATRIX_PANEL_WIDTH
+NA_PANEL_HEIGHT: Final[int] = 2 * NA_PANEL_PADDING + CELL_HEIGHT
+
+CONTENT_COLUMN_WIDTH: Final[int] = MATRIX_PANEL_WIDTH
+CONTENT_COLUMN_HEIGHT: Final[int] = BODY_HEIGHT - 2 * BODY_PADDING
+
+MATRIX_LABEL_FONT_SIZE: Final[int] = max(
+    8, min(18, CELL_HEIGHT - 6, CELL_WIDTH - 6, MATRIX_HEADER_ROW_HEIGHT - 6)
+)
+MATRIX_LABEL_TEXT_COLOR: Final[tuple[int, int, int]] = (255, 255, 255)
+
+MATRIX_ZERO_CELL_COLOR: Final[tuple[int, int, int]] = (45, 45, 45)
+MATRIX_MAX_CELL_COLOR: Final[tuple[int, int, int]] = (
+    252, 70, 48)
+MATRIX_CELL_CORNERS_RADIUS: Final[int] = 2
+
+# --- Modal pequeno de célula ---
+
+CELL_MODAL_WIDTH: Final[int] = 320
+CELL_MODAL_HEIGHT: Final[int] = 150
+CELL_MODAL_PADDING: Final[int] = 20
+CELL_MODAL_SPACE_BETWEEN: Final[int] = 12
+CELL_MODAL_CORNERS_RADIUS: Final[int] = 20
+CELL_MODAL_TITLE_FONT_SIZE: Final[int] = 24
+CELL_MODAL_TEXT_FONT_SIZE: Final[int] = 20
+CELL_MODAL_CLOSE_BUTTON_WIDTH: Final[int] = 70
+CELL_MODAL_CLOSE_BUTTON_HEIGHT: Final[int] = 40
+CELL_MODAL_CLOSE_BUTTON_CORNERS_RADIUS: Final[tuple[int, int, int, int]] = (
+    10, 10, 10, 10)
+
+MODAL_OVERLAY_COLOR: Final[tuple[int, int, int, int]] = (0, 0, 0, 150)
+MODAL_BACKGROUND_COLOR_LIGHTEN: Final[int] = 70

@@ -1,6 +1,7 @@
 from pathlib import Path
 from src.domain import Label
 from src.hnsw import HnswClassifier
+from collections import Counter
 from src.services import extract_balanced_testing_images, extract_balanced_testing_labels
 import time
 import json
@@ -35,6 +36,7 @@ class HnswTester:
         self.__correct_count: int = 0
         self.__incorrect_count: int = 0
         self.__inconclusive_count: int = 0
+        self.__confusion_counts: Counter[tuple[str, str]] = Counter()
 
     def __run_tests(self):
         images = extract_balanced_testing_images()
@@ -43,13 +45,15 @@ class HnswTester:
 
         for image, raw_label in zip(images, labels):
             self.__tests_count += 1
-            self.__progress = (self.__tests_count / len(images))*100
+            self.__progress = (self.__tests_count / len(images)) * 100
             expected_label = Label(raw_label)
             actual_label = HnswClassifier.classify(
                 image, self.__max_candidates)
             self.__update_results(expected_label, actual_label)
 
-    def __update_results(self, expected_label: str, actual_label: str):
+    def __update_results(self, expected_label: Label, actual_label: str):
+        self.__confusion_counts[(str(expected_label), str(actual_label))] += 1
+
         if actual_label == "n/a":
             self.__inconclusive_count += 1
         elif actual_label == expected_label:
@@ -68,6 +72,10 @@ class HnswTester:
                     "total_inconclusive": self.__inconclusive_count,
                     "acuracy": self.__correct_count / self.__tests_count,
                     "execution_time_per_test": elapsed_time / self.__tests_count,
-                    "total_execution_time": elapsed_time
+                    "total_execution_time": elapsed_time,
+                    "confusion_matrix": [
+                        {"expected": expected, "actual": actual, "count": count}
+                        for (expected, actual), count in self.__confusion_counts.items()
+                    ],
                 }, file, indent=4, ensure_ascii=False
             )
