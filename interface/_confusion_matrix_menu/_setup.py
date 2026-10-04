@@ -4,7 +4,7 @@ from typing import Callable, Final
 
 from . import _constants as const
 from desklab import Button, FlexBox, Text, Window
-from interface._utils import create_button_with_text, build_header, toggle_brightness_up
+from interface._utils import create_button_with_text, toggle_brightness_up
 from interface._constants import WINDOW_WIDTH, BASE_COLOR, DEFAULT_FONT, DEFAULT_TEST_RESULTS_PATH
 
 
@@ -16,31 +16,26 @@ assert len(const.CLASS_LABELS) == const.NUM_CLASSES, (
 
 
 def _empty_matrix() -> list[list[int]]:
-    return [[0] * const.NUM_CLASSES for _ in range(const.NUM_CLASSES)]
+    return [[0] * const.NUM_COLUMNS for _ in range(const.NUM_CLASSES)]
 
 
-def _load_confusion_data() -> tuple[list[list[int]], list[int]]:
+def _load_confusion_data() -> list[list[int]]:
     try:
         with DEFAULT_TEST_RESULTS_PATH.open(mode="r", encoding="utf-8") as file:
             data = json.load(file)
     except (FileNotFoundError, json.JSONDecodeError):
-        return _empty_matrix(), [0] * const.NUM_CLASSES
+        return _empty_matrix()
 
-    label_index = {label: index for index,
-                   label in enumerate(const.CLASS_LABELS)}
+    index = {label: index for index,
+             label in enumerate(const.CLASS_LABELS)}
     matrix = _empty_matrix()
-    na_row = [0] * const.NUM_CLASSES
 
     for entry in data.get("confusion_matrix", []):
         expected, actual, count = entry["expected"], entry["actual"], entry["count"]
-        if expected not in label_index:
-            continue
-        if actual == "n/a":
-            na_row[label_index[expected]] = count
-        elif actual in label_index:
-            matrix[label_index[expected]][label_index[actual]] = count
+        if expected in index and actual in index:
+            matrix[index[expected]][index[actual]] = count
 
-    return matrix, na_row
+    return matrix
 
 
 def _lerp_color(start: tuple[int, int, int], end: tuple[int, int, int], t: float) -> tuple[int, ...]:
@@ -79,17 +74,18 @@ def _build_cell_modal(modal_layer: FlexBox, close_modal: Callable[[], None]) -> 
     modal_background.add_children([title_text, count_text, close_button])
 
     def open_cell_modal(row_label: str, column_label: str, count: int) -> None:
-        title_text.set_text(f"{row_label} -> {column_label}")
+        title_text.set_text(f"{row_label} >> {column_label}")
         count_text.set_text(f"{count} ocorrencia{'s' if count != 1 else ''}")
         modal_layer.set_visibility(True)
 
     return open_cell_modal
 
 
-def _build_row_label_cell(text: str, background: tuple[int, ...]) -> FlexBox:
+def _build_row_label_cell(text: str, row_height: int) -> FlexBox:
     cell = FlexBox(
-        const.MATRIX_LABEL_COLUMN_WIDTH, const.CELL_HEIGHT,
-        flex_direction="ROW", horizontal_alignment="CENTER", color=background,
+        const.MATRIX_LABEL_COLUMN_WIDTH, row_height,
+        flex_direction="ROW", horizontal_alignment="CENTER", color=BASE_COLOR,
+        bounded=False
     )
     cell.add_children(
         Text(text, DEFAULT_FONT.copy(size=const.MATRIX_LABEL_FONT_SIZE),
@@ -101,21 +97,21 @@ def _build_row_label_cell(text: str, background: tuple[int, ...]) -> FlexBox:
 def _build_matrix_row(
     row_label: str,
     row_values: list[int],
+    row_height: int,
     background: tuple[int, ...],
     open_cell_modal: Callable[[str, str, int], None],
 ) -> FlexBox:
     row = FlexBox(
-        const.MATRIX_LABEL_COLUMN_WIDTH + const.NUM_CLASSES *
-        const.CELL_WIDTH, const.CELL_HEIGHT,
+        const.MATRIX_GRID_WIDTH, row_height,
         flex_direction="ROW", color=background,
     )
-    row.add_children(_build_row_label_cell(row_label, background))
+    row.add_children(_build_row_label_cell(row_label, row_height))
 
     row_max = max(row_values, default=0)
 
-    for column_label, value in zip(const.CLASS_LABELS, row_values):
+    for column_label, column_width, value in zip(const.CLASS_LABELS, const.COLUMN_WIDTHS, row_values):
         cell = Button(
-            const.CELL_WIDTH, const.CELL_HEIGHT,
+            column_width, row_height,
             partial(open_cell_modal, row_label, column_label, value),
             corners_radius=const.MATRIX_CELL_CORNERS_RADIUS,
             color=_row_color(value, row_max),
@@ -127,21 +123,25 @@ def _build_matrix_row(
     return row
 
 
-def _build_column_header_row(background: tuple[int, ...]) -> FlexBox:
+def _build_column_header_row(on_close: Callable[[], None]) -> FlexBox:
     header_row = FlexBox(
-        const.MATRIX_LABEL_COLUMN_WIDTH + const.NUM_CLASSES *
-        const.CELL_WIDTH, const.MATRIX_HEADER_ROW_HEIGHT,
-        flex_direction="ROW", color=background,
-    )
-    header_row.add_children(
-        FlexBox(const.MATRIX_LABEL_COLUMN_WIDTH,
-                const.MATRIX_HEADER_ROW_HEIGHT, color=background)
+        const.MATRIX_GRID_WIDTH, const.MATRIX_HEADER_ROW_HEIGHT,
+        flex_direction="ROW", color=BASE_COLOR,
     )
 
-    for label in const.CLASS_LABELS:
+    close_button = create_button_with_text(
+        const.CLOSE_BUTTON_WIDTH, const.CLOSE_BUTTON_HEIGHT,
+        const.CLOSE_BUTTON_COLOR, const.CLOSE_BUTTON_TEXT,
+        corners_radius=const.CLOSE_BUTTON_CORNERS_RADIUS,
+        font_size=const.CLOSE_BUTTON_FONT_SIZE, action=on_close,
+    )
+    header_row.add_children(close_button)
+
+    for label, column_width in zip(const.CLASS_LABELS, const.COLUMN_WIDTHS):
         header_cell = FlexBox(
-            const.CELL_WIDTH, const.MATRIX_HEADER_ROW_HEIGHT,
-            flex_direction="ROW", horizontal_alignment="CENTER", color=background,
+            column_width, const.MATRIX_HEADER_ROW_HEIGHT,
+            flex_direction="ROW", horizontal_alignment="CENTER", color=BASE_COLOR,
+            bounded=False
         )
         header_cell.add_children(
             Text(label, DEFAULT_FONT.copy(
@@ -152,56 +152,28 @@ def _build_column_header_row(background: tuple[int, ...]) -> FlexBox:
     return header_row
 
 
-def _build_matrix_panel(matrix: list[list[int]], open_cell_modal: Callable[[str, str, int], None]) -> FlexBox:
-    background = BASE_COLOR.lightened(const.MATRIX_PANEL_COLOR_LIGHTEN)
+def _build_matrix_panel(
+    matrix: list[list[int]],
+    open_cell_modal: Callable[[str, str, int], None],
+    on_close: Callable[[], None],
+) -> FlexBox:
+
+    background_color = BASE_COLOR.lightened(const.BODY_COLOR_LIGHTEN)
 
     panel = FlexBox(
         const.MATRIX_PANEL_WIDTH, const.MATRIX_PANEL_HEIGHT,
         padding=const.MATRIX_PANEL_PADDING,
         corners_radius=const.MATRIX_PANEL_CORNERS_RADIUS,
-        color=background,
+        color=background_color,
     )
 
-    panel.add_children(_build_column_header_row(background.get_tuple()))
+    panel.add_children(_build_column_header_row(on_close))
 
-    for row_label, row_values in zip(const.CLASS_LABELS, matrix):
+    for row_label, row_height, row_values in zip(const.CLASS_LABELS, const.ROW_HEIGHTS, matrix):
         panel.add_children(_build_matrix_row(
-            row_label, row_values, background.get_tuple(), open_cell_modal))
+            row_label, row_values, row_height, background_color.get_tuple(), open_cell_modal))
 
     return panel
-
-
-def _build_na_panel(na_row: list[int], open_cell_modal: Callable[[str, str, int], None]) -> FlexBox:
-    background = BASE_COLOR.lightened(const.NA_PANEL_COLOR_LIGHTEN)
-
-    panel = FlexBox(
-        const.NA_PANEL_WIDTH, const.NA_PANEL_HEIGHT,
-        padding=const.NA_PANEL_PADDING,
-        corners_radius=const.NA_PANEL_CORNERS_RADIUS,
-        color=background,
-    )
-
-    panel.add_children(_build_matrix_row(
-        "N/A", na_row, background.get_tuple(), open_cell_modal))
-
-    return panel
-
-
-def _build_sidebar(background: tuple[int, ...]) -> FlexBox:
-    sidebar = FlexBox(
-        const.SIDEBAR_WIDTH, const.CONTENT_COLUMN_HEIGHT,
-        color=background,
-    )
-
-    close_button = create_button_with_text(
-        const.CLOSE_BUTTON_SIZE, const.CLOSE_BUTTON_SIZE,
-        const.CLOSE_BUTTON_COLOR, const.CLOSE_BUTTON_TEXT,
-        corners_radius=const.CLOSE_BUTTON_CORNERS_RADIUS,
-        font_size=const.CLOSE_BUTTON_FONT_SIZE, action=confusion_matrix_menu.close,
-    )
-    sidebar.add_children(close_button)
-
-    return sidebar
 
 
 def confusion_matrix_menu_setup() -> Window:
@@ -212,32 +184,20 @@ def confusion_matrix_menu_setup() -> Window:
     def close_cell_modal() -> None:
         cell_modal_layer.set_visibility(False)
 
-    header = build_header(WINDOW_WIDTH)
     body_background = BASE_COLOR.lightened(const.BODY_COLOR_LIGHTEN)
     body = FlexBox(
         WINDOW_WIDTH, const.BODY_HEIGHT,
         padding=const.BODY_PADDING, space_between=const.BODY_SPACE_BETWEEN,
-        flex_direction="ROW",
         color=body_background,
     )
 
-    matrix, na_row = _load_confusion_data()
-
+    matrix = _load_confusion_data()
     open_cell_modal = _build_cell_modal(cell_modal_layer, close_cell_modal)
 
-    sidebar = _build_sidebar(body_background.get_tuple())
-
-    content_column = FlexBox(
-        const.CONTENT_COLUMN_WIDTH, const.CONTENT_COLUMN_HEIGHT,
-        space_between=const.BODY_SPACE_BETWEEN,
-        color=body_background,
+    body.add_children(
+        _build_matrix_panel(matrix, open_cell_modal,
+                            confusion_matrix_menu.close)
     )
-    content_column.add_children([
-        _build_matrix_panel(matrix, open_cell_modal),
-        _build_na_panel(na_row, open_cell_modal),
-    ])
-
-    body.add_children([sidebar, content_column])
-    base_layer.add_children([header, body])
+    base_layer.add_children(body)
 
     return confusion_matrix_menu

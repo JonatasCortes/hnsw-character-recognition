@@ -21,60 +21,74 @@ def _build_welcome_message(width: int, height: int, color: Color) -> FlexBox:
     font = Font("trebuchet", const.WELCOME_MESSAGE_FONT_SIZE)
     welcome_message.add_children(
         [
-            Text("Welcome to the HNSW Customization Menu! Select the desired",
-                 font, "WHITE"),
-            Text("parameters for your HNSW database below:", font, "WHITE"),
-            Text("    1 - M (Maximum number of connections per node)",
+            Text("Welcome to the HNSW Customization Menu! Configure the database parameters below:", font, "WHITE"),
+            Text(f"    1 - {const.MAX_NEIGHBORS_LABEL} (Maximum number of connections per node)",
                  font, const.M_HIGHLIGHT_COLOR),
-            Text("    2 - efConstruction (Maximum number of neighbor",
+            Text(f"    2 - {const.CONSTRUCTION_MAX_CANDIDATES_LABEL} (Neighbor candidates during build)",
                  font, const.EF_HIGHLIGHT_COLOR),
-            Text("    candidates considered during each node insertion)",
+            Text(f"    3 - {const.CLASSIFICATION_MAX_CANDIDATES_LABEL} (Candidates examined during query)",
                  font, const.EF_HIGHLIGHT_COLOR),
+            Text(f"    4 - {const.IMAGE_SECTIONS_LABEL} (Grid partitions per image sample)",
+                 font, const.SECTION_HIGHLIGHT_COLOR),
+            Text(f"    5 - {const.LUMINANCE_THRESHOLD_LABEL} (Pixel filter threshold value)",
+                 font, const.THRESHOLD_HIGHLIGHT_COLOR),
         ]
     )
     return welcome_message
 
 
-def _build_labeled_input(label_text: str, font: Font) -> tuple[FlexBox, TextInput]:
-    text_input = TextInput(const.INPUT_WIDTH, const.INPUT_HEIGHT,
+def _build_labeled_input(label_text: str, font: Font, container_width: int) -> tuple[FlexBox, TextInput]:
+    item_width = container_width - (2 * const.INPUT_CONTAINER_PADDING)
+
+    text_input = TextInput(item_width, const.INPUT_HEIGHT,
                            corners_radius=const.INPUT_CORNER_RADIUS)
 
     labeled_input = FlexBox(
-        const.INPUT_WIDTH,
+        item_width,
         const.INPUT_HEIGHT + const.INPUT_LABEL_HEIGHT + const.INPUT_LABEL_SPACE_BETWEEN,
         space_between=const.INPUT_LABEL_SPACE_BETWEEN,
         horizontal_alignment="LEFT",
+        flex_direction="COLUMN",
         color=BASE_COLOR,
     )
     labeled_input.add_children([Text(label_text, font, "WHITE"), text_input])
     return labeled_input, text_input
 
 
-def _build_input_container() -> tuple[FlexBox, TextInput, TextInput]:
-    input_container_width = int(WINDOW_WIDTH *
-                                const.WELCOME_MESSAGE_WIDTH_RATIO)
-    input_container_height = (const.INPUT_HEIGHT + const.INPUT_LABEL_HEIGHT +
-                              const.INPUT_LABEL_SPACE_BETWEEN + 2 * const.INPUT_CONTAINER_PADDING)
+def _build_input_container() -> tuple[FlexBox, dict[str, TextInput]]:
+    input_container_width = int(
+        WINDOW_WIDTH * const.WELCOME_MESSAGE_WIDTH_RATIO)
+
+    num_items = len(const.TEXT_INPUT_LABELS)
+    item_total_height = const.INPUT_HEIGHT + \
+        const.INPUT_LABEL_HEIGHT + const.INPUT_LABEL_SPACE_BETWEEN
+
+    input_container_height = (
+        (2 * const.INPUT_CONTAINER_PADDING) +
+        (num_items * item_total_height) +
+        ((num_items - 1) * const.INPUT_CONTAINER_SPACE_BETWEEN)
+    )
+
     inputs_container = FlexBox(
         input_container_width,
         input_container_height,
         padding=const.INPUT_CONTAINER_PADDING,
-        space_between=const.INPUT_CONTAINER_SPACE_BETWEEN, flex_direction="ROW",
-        corners_radius=const.INPUT_CONTAINER_CORNERS_RADIUS, color=BASE_COLOR,
+        space_between=const.INPUT_CONTAINER_SPACE_BETWEEN,
+        flex_direction="COLUMN",
+        corners_radius=const.INPUT_CONTAINER_CORNERS_RADIUS,
+        color=BASE_COLOR,
     )
 
     label_font = Font("trebuchet", const.INPUT_LABEL_FONT_SIZE)
-    m_container, m_input = _build_labeled_input(
-        const.M_LABEL_TEXT,
-        label_font
-    )
-    ef_container, ef_input = _build_labeled_input(
-        const.EF_CONSTRUCTION_LABEL_TEXT,
-        label_font
-    )
+    parameters: dict[str, TextInput] = {}
 
-    inputs_container.add_children([m_container, ef_container])
-    return inputs_container, m_input, ef_input
+    for label in const.TEXT_INPUT_LABELS:
+        conteiner, parameter = _build_labeled_input(
+            label, label_font, input_container_width)
+        inputs_container.add_children(conteiner)
+        parameters[label.lower()] = parameter
+
+    return inputs_container, parameters
 
 
 def _build_buttons_container(width: int, card_color: Color, on_build: Callable[[], Any], on_exit: Callable[[], Any]) -> FlexBox:
@@ -105,15 +119,16 @@ def _build_buttons_container(width: int, card_color: Color, on_build: Callable[[
     return buttons_container
 
 
-def _on_build(m_input: TextInput, ef_input: TextInput) -> None:
+def _on_build(parameters: dict[str, TextInput]) -> None:
+    int_params: dict[str, int] = {}
 
-    max_neighbors = m_input.get_text()
-    max_candidates = ef_input.get_text()
-    if not max_neighbors.isdigit() or not max_candidates.isdigit():
-        return
+    for key, param in parameters.items():
+        param_text = param.get_text()
+        if not param_text.isdigit():
+            return
+        int_params[key.lower()] = int(param_text)
 
-    loading_menu = loading_menu_setup(int(max_neighbors),
-                                      int(max_candidates))
+    loading_menu = loading_menu_setup(**int_params)
 
     hnsw_customization_menu.close()
     loading_menu.open()
@@ -130,17 +145,17 @@ def hnsw_customization_menu_setup() -> Window:
 
     content_width = int(WINDOW_WIDTH * const.WELCOME_MESSAGE_WIDTH_RATIO)
     welcome_message = _build_welcome_message(
-        content_width, const.BODY_HEIGHT // const.WELCOME_MESSAGE_HEIGHT_RATIO, card_color,
+        content_width, const.WELCOME_MESSAGE_HEIGHT, card_color,
     )
-    inputs_container, m_input, ef_construction_input = _build_input_container()
+    inputs_container, parameters = _build_input_container()
 
     def _exit():
         hnsw_customization_menu.close()
         sys.exit()
 
     buttons_container = _build_buttons_container(
-        const.BUTTONS_CONTAINER_WIDTH, BASE_COLOR,
-        lambda: _on_build(m_input, ef_construction_input),
+        const.BUTTONS_CONTAINER_WIDTH, card_color,
+        lambda: _on_build(parameters),
         _exit,
     )
 

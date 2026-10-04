@@ -10,10 +10,12 @@ import numpy as np
 
 class NodeManager:
 
-    def __init__(self, hnsw: HNSW, max_neighbors: int, max_candidates: int) -> None:
+    def __init__(self, hnsw: HNSW, max_neighbors: int, max_candidates: int, image_sections: int, luminance_threshold: int) -> None:
         self.__hnsw = hnsw
         self.__max_neighbors = max_neighbors
         self.__max_candidates = max_candidates
+        self.__image_sections = image_sections
+        self.__luminance_threshold = luminance_threshold
         self.__hnsw_max_layer_id = -1
         self.__entry_point_id: int | None = None
 
@@ -22,7 +24,8 @@ class NodeManager:
         self.__connection_manager = ConnectionManager(hnsw)
 
     def insert(self, target_id: int, image: np.ndarray, label: int) -> None:
-        position = Position(image)
+        position = Position(image, self.__image_sections,
+                            self.__luminance_threshold)
         top_layer = self.__determine_insertion_layer()
         self.__register_node_in_layers(target_id, position,
                                        int(label), top_layer)
@@ -86,18 +89,29 @@ class NodeManager:
 
     def __prune_if_overflowing(self, node_id: int, layer_id: int, max_neighbors: int) -> None:
         layer = self.__hnsw[layer_id]
-        neighbor_ids = layer[node_id]["neighbors"]
+        node = layer[node_id]
+        neighbor_ids: list[int] = node["neighbors"]
         excess = len(neighbor_ids) - max_neighbors
 
         if excess <= 0:
             return
 
-        base_position = layer[node_id]["position"]
-        candidates = self.__build_candidates(neighbor_ids,
-                                             base_position,
+        base_position = node["position"]
+
+        if excess == 1:
+            farthest_id = max(
+                neighbor_ids,
+                key=lambda neighbor_id: hamming_distance(
+                    layer[neighbor_id]["position"], base_position),
+            )
+            neighbor_ids.remove(farthest_id)
+            layer[farthest_id]["neighbors"].remove(node_id)
+            return
+
+        candidates = self.__build_candidates(neighbor_ids, base_position,
                                              layer_id)
-        worst_neighbors = self.__heuristic.select_worst(candidates,
-                                                        layer_id, excess)
+        worst_neighbors = self.__heuristic.select_worst(candidates, layer_id,
+                                                        excess)
         self.__connection_manager.prune_connections(node_id, layer_id,
                                                     worst_neighbors)
 

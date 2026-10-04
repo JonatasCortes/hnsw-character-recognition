@@ -1,5 +1,6 @@
+from src.domain import Candidate
 from typing import Callable
-from src.domain import HNSW, Candidate, Layer
+from src.domain import HNSW
 import heapq
 
 
@@ -21,44 +22,39 @@ class SearchEngine:
 
     def explore_layer(self, target_position: int, layer_id: int, max_candidates: int, entry_node_id: int = 0) -> None:
         layer = self.__hnsw[layer_id]
-        entry = self.__build_candidate(entry_node_id, layer, target_position)
+        distance_metric = self.__distance_metric
+        push, pop, replace = heapq.heappush, heapq.heappop, heapq.heapreplace
 
-        self.__candidates = []
-        self.__update_candidates(entry, max_candidates)
+        entry_distance = distance_metric(
+            layer[entry_node_id]["position"], target_position)
+        frontier: list[tuple[int, int]] = [(entry_distance,
+                                            entry_node_id)]
 
-        frontier: list[Candidate] = [entry]
+        best: list[tuple[int, int]] = [(-entry_distance, entry_node_id)]
         visited: set[int] = {entry_node_id}
 
         while frontier:
-            nearest_unexpanded = heapq.heappop(frontier)
+            distance, node_id = pop(frontier)
 
-            if self.__cannot_improve(nearest_unexpanded, max_candidates):
+            if len(best) >= max_candidates and distance > -best[0][0]:
                 break
 
-            for neighbor_id in layer[nearest_unexpanded.id]["neighbors"]:
+            for neighbor_id in layer[node_id]["neighbors"]:
                 if neighbor_id in visited:
                     continue
                 visited.add(neighbor_id)
 
-                neighbor = self.__build_candidate(neighbor_id, layer,
-                                                  target_position)
-                heapq.heappush(frontier, neighbor)
-                self.__update_candidates(neighbor, max_candidates)
+                neighbor_distance = distance_metric(
+                    layer[neighbor_id]["position"], target_position)
 
-        self.__nearest_neighbor = min(self.__candidates).id
+                if len(best) < max_candidates:
+                    push(best, (-neighbor_distance, neighbor_id))
+                elif neighbor_distance < -best[0][0]:
+                    replace(best, (-neighbor_distance, neighbor_id))
+                else:
+                    continue
+                push(frontier, (neighbor_distance, neighbor_id))
 
-    def __build_candidate(self, node_id: int, layer: Layer, target_position: int) -> Candidate:
-        position = layer[node_id]["position"]
-        distance = self.__distance_metric(position, target_position)
-        return Candidate(node_id, position, distance)
-
-    def __update_candidates(self, candidate: Candidate, max_candidates: int) -> None:
-        heapq.heappush_max(self.__candidates, candidate)
-        if len(self.__candidates) > max_candidates:
-            heapq.heappop_max(self.__candidates)
-
-    def __cannot_improve(self, candidate: Candidate, max_candidates: int) -> bool:
-        if len(self.__candidates) < max_candidates:
-            return False
-        worst_kept = self.__candidates[0]
-        return candidate.distance_to_target > worst_kept.distance_to_target
+        self.__candidates = [
+            Candidate(-d, i, layer[i]["position"]) for d, i in best]
+        self.__nearest_neighbor = max(best)[1]

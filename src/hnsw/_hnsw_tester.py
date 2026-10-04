@@ -9,10 +9,12 @@ import json
 
 class HnswTester:
 
-    def __init__(self, hnsw_file: Path, results_file: Path, max_candidates: int) -> None:
-        self.__max_candidates = max_candidates
+    def __init__(self, hnsw_file: Path, results_file: Path, classification_max_candidates: int, image_sections: int, luminance_threshold: int) -> None:
+        self.__max_candidates = classification_max_candidates
         self.__hnsw_file = hnsw_file
         self.__results_file = results_file
+        self.__image_sections = image_sections
+        self.__luminance_threshold = luminance_threshold
         self.__reset_state()
 
     def run(self):
@@ -47,16 +49,14 @@ class HnswTester:
             self.__tests_count += 1
             self.__progress = (self.__tests_count / len(images)) * 100
             expected_label = Label(raw_label)
-            actual_label = HnswClassifier.classify(
-                image, self.__max_candidates)
+            actual_label = HnswClassifier.classify(image, self.__max_candidates,
+                                                   self.__image_sections,
+                                                   self.__luminance_threshold)
             self.__update_results(expected_label, actual_label)
 
     def __update_results(self, expected_label: Label, actual_label: str):
         self.__confusion_counts[(str(expected_label), str(actual_label))] += 1
-
-        if actual_label == "n/a":
-            self.__inconclusive_count += 1
-        elif actual_label == expected_label:
+        if actual_label == expected_label:
             self.__correct_count += 1
             return
         self.__incorrect_count += 1
@@ -69,7 +69,6 @@ class HnswTester:
                     "total_tests": self.__tests_count,
                     "total_correct": self.__correct_count,
                     "total_incorrect": self.__incorrect_count,
-                    "total_inconclusive": self.__inconclusive_count,
                     "acuracy": self.__correct_count / self.__tests_count,
                     "execution_time_per_test": elapsed_time / self.__tests_count,
                     "total_execution_time": elapsed_time,

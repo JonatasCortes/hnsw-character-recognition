@@ -7,11 +7,12 @@ import json
 
 class HnswBuilder:
 
-    def __init__(self, file_path: Path, max_neighbors: int, max_candidates: int) -> None:
+    def __init__(self, file_path: Path, max_neighbors: int, construction_max_candidates: int, image_sections: int, luminance_threshold: int) -> None:
         self.__file_path = file_path
         self.__hnsw = HNSW()
-        self.__node_inserter = NodeManager(self.__hnsw, max_neighbors,
-                                           max_candidates)
+        self.__node_manager = NodeManager(self.__hnsw, max_neighbors,
+                                          construction_max_candidates, image_sections,
+                                          luminance_threshold)
         self.__progress: float = 0.0
         self.__done: bool = False
 
@@ -21,7 +22,7 @@ class HnswBuilder:
         total_nodes = len(images)
 
         for target_id, (image, label) in enumerate(zip(images, labels)):
-            self.__node_inserter.insert(target_id, image, label)
+            self.__node_manager.insert(target_id, image, label)
             self.__progress = (target_id + 1) / total_nodes * 100
 
         with self.__file_path.open(mode="w", encoding="utf-8") as file:

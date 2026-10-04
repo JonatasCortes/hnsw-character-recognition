@@ -4,28 +4,18 @@ import numpy as np
 
 class Position(int):
 
-    __SECTIONS = 28
-    __LUMINANCE_THRESHOLD = 100
-
-    def __new__(cls, image: np.ndarray) -> Self:
-        return super().__new__(cls, cls.__calculate(image))
+    def __new__(cls, image: np.ndarray, image_sections: int, luminance_threshold: int) -> Self:
+        return super().__new__(cls, cls.__calculate(image, image_sections, luminance_threshold))
 
     @classmethod
-    def __calculate(cls, image: np.ndarray) -> int:
-        binary = image > cls.__LUMINANCE_THRESHOLD
+    def __calculate(cls, image: np.ndarray, image_sections: int, luminance_threshold: int) -> int:
+        binary = image > luminance_threshold
         cropped_binary = cls.__crop_to_content(binary)
-        normalized_shape = (cls.__SECTIONS, cls.__SECTIONS)
         normalized_binary = cls.__normalize_shape(cropped_binary,
-                                                  normalized_shape)
-        rows = np.array_split(normalized_binary, cls.__SECTIONS, axis=0)
-        position = 1
-
-        for row in rows:
-            cells = np.array_split(row, cls.__SECTIONS, axis=1)
-            for cell in cells:
-                position = (position << 1) | int(cell.mean() >= 0.5)
-
-        return position
+                                                  (image_sections, image_sections))
+        bits = "".join("1" if bit else "0"
+                       for bit in normalized_binary.ravel())
+        return int("1" + bits, 2)
 
     @staticmethod
     def __crop_to_content(binary: np.ndarray) -> np.ndarray:

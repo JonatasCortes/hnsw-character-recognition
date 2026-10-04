@@ -4,6 +4,7 @@ from typing import Final, Protocol, Callable
 from . import _constants as const
 from desklab import FlexBox, Window, RectangularArea, Listener, Text
 from interface._utils import build_header
+import inspect
 from interface._constants import (
     WINDOW_WIDTH,
     BASE_COLOR,
@@ -95,18 +96,22 @@ def _build_progress_section(
     return begin_listener, progress_listener
 
 
-def loading_menu_setup(max_neighbors: int, max_candidates: int) -> Window:
-    hnsw_builder = HnswBuilder(
-        DEFAULT_DATABASE_PATH,
-        max_neighbors,
-        max_candidates,
-    )
+def loading_menu_setup(**parameters: int) -> Window:
 
-    hnsw_tester = HnswTester(
-        DEFAULT_DATABASE_PATH,
-        DEFAULT_TEST_RESULTS_PATH,
-        max_candidates,
-    )
+    builder_param_keys = set(inspect.signature(HnswBuilder).parameters.keys())
+    tester_param_key = set(inspect.signature(HnswTester).parameters.keys())
+
+    builder_params = {k: v for k,
+                      v in parameters.items() if k in builder_param_keys}
+    tester_params = {k: v for k, v in parameters.items()
+                     if k in tester_param_key}
+
+    hnsw_builder = HnswBuilder(DEFAULT_DATABASE_PATH,
+                               **builder_params)
+
+    hnsw_tester = HnswTester(DEFAULT_DATABASE_PATH,
+                             DEFAULT_TEST_RESULTS_PATH,
+                             **tester_params)
 
     base_layer = loading_menu.add_layer()
 
@@ -143,6 +148,7 @@ def loading_menu_setup(max_neighbors: int, max_candidates: int) -> Window:
     progress_finished = Listener(
         hnsw_tester.is_done,
         loading_menu.close,
+        listen_once=True
     )
 
     body.add_children(
