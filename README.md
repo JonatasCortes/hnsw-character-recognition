@@ -41,8 +41,6 @@ Unlike the original algorithm, this project assigns nodes to layers **determinis
 
 ## 1. Getting Started
 
-**Requires Python 3.14 or newer** (the project relies on `heapq` max-heap support introduced in 3.14).
-
 **macOS / Linux**
 
 ```bash
@@ -55,7 +53,7 @@ python main.py
 **Windows (PowerShell)**
 
 ```powershell
-py -3.14 -m venv .venv
+python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 python main.py
@@ -89,7 +87,7 @@ Experiments use **EMNIST Balanced**: grayscale handwritten characters in **47 cl
 
 | Technology | Use |
 |---|---|
-| Python 3.14 | Language |
+| Python 3 | Language |
 | NumPy | Image manipulation |
 | Desklab | Interface |
 
