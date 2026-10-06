@@ -8,10 +8,10 @@ CLASS_LABELS = (
     'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
     'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
     'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'd', 'e',
-    'g', 'h', 'n', 'q', 'r', 't'
+    'f', 'g', 'h', 'n', 'q', 'r', 't'
 )
 
-NUM_CLASSES: Final[int] = 46
+NUM_CLASSES: Final[int] = 47
 NUM_COLUMNS: Final[int] = NUM_CLASSES
 
 BODY_COLOR_LIGHTEN: Final[int] = 20
