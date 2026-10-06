@@ -62,7 +62,7 @@ MATRIX_PANEL_HEIGHT: Final[int] = (
     2 * MATRIX_PANEL_PADDING + MATRIX_HEADER_ROW_HEIGHT + sum(ROW_HEIGHTS)
 )
 
-MATRIX_LABEL_FONT_SIZE: Final[int] = 13
+MATRIX_LABEL_FONT_SIZE: Final[int] = 14
 MATRIX_LABEL_TEXT_COLOR: Final[tuple[int, int, int]] = (255, 255, 255)
 
 MATRIX_ZERO_CELL_COLOR: Final[tuple[int, int, int]] = (45, 45, 45)

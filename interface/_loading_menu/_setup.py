@@ -1,10 +1,9 @@
 from threading import Thread
-from typing import Final, Protocol, Callable
+from typing import Callable, Final
 
 from . import _constants as const
 from desklab import FlexBox, Window, RectangularArea, Listener, Text
 from interface._utils import build_header
-import inspect
 from interface._constants import (
     WINDOW_WIDTH,
     BASE_COLOR,
@@ -13,53 +12,62 @@ from interface._constants import (
     DEFAULT_TEST_RESULTS_PATH,
 )
 
-from src.hnsw import HnswBuilder, HnswTester
-
-
-class Progress(Protocol):
-
-    def get_progress(self) -> float:
-        ...
+from src.hnsw import Hnsw, HnswParameters
 
 
 loading_menu: Final[Window] = Window()
 
 
-def _update_progress(
-    progress_container: FlexBox,
-    progress_provider: Progress,
-    label: str,
-    bar_color: str,
-) -> None:
-    progress_container.clear_children()
+class _ProgressRenderer:
 
-    progress = progress_provider.get_progress()
+    def __init__(
+        self,
+        container: FlexBox,
+        get_progress: Callable[[], float],
+        label: str,
+        bar_color: str,
+    ) -> None:
+        self.__container = container
+        self.__get_progress = get_progress
+        self.__label = label
+        self.__bar_color = bar_color
+        self.__rendered_progress: float | None = None
 
-    progress_text = Text(
-        f"{label}: {progress:.2f}%",
-        DEFAULT_FONT,
-        const.PROGRESS_TEXT_COLOR,
-    )
+    def has_changed(self) -> bool:
+        return round(self.__get_progress(), 2) != self.__rendered_progress
 
-    bar_background = FlexBox(
-        progress_container.get_width() - const.PROGRESS_BAR_HORIZONTAL_MARGIN,
-        const.PROGRESS_BAR_HEIGHT,
-        color=BASE_COLOR.darkened(const.PROGRESS_BAR_BACKGROUND_DARKEN),
-        corners_radius=const.PROGRESS_BAR_BACKGROUND_CORNER_RADIUS,
-        horizontal_alignment=const.PROGRESS_BAAR_HORIZONTAL_ALIGNMENT
-    )
+    def render(self) -> None:
+        progress = round(self.__get_progress(), 2)
+        self.__rendered_progress = progress
 
-    filled_width = round(bar_background.get_width() * (progress / 100))
+        progress_text = Text(
+            f"{self.__label}: {progress:.2f}%",
+            DEFAULT_FONT,
+            const.PROGRESS_TEXT_COLOR,
+        )
 
-    progress_bar = RectangularArea(
-        filled_width,
-        const.PROGRESS_BAR_HEIGHT,
-        bar_color,
-        const.PROGRESS_BAR_CORNER_RADIUS,
-    )
+        bar_background = FlexBox(
+            self.__container.get_width() - const.PROGRESS_BAR_HORIZONTAL_MARGIN,
+            const.PROGRESS_BAR_HEIGHT,
+            color=BASE_COLOR.darkened(const.PROGRESS_BAR_BACKGROUND_DARKEN),
+            corners_radius=const.PROGRESS_BAR_BACKGROUND_CORNER_RADIUS,
+            horizontal_alignment=const.PROGRESS_BAAR_HORIZONTAL_ALIGNMENT,
+        )
 
-    bar_background.add_children([progress_bar])
-    progress_container.add_children([progress_text, bar_background])
+        filled_width = round(bar_background.get_width() * (progress / 100))
+
+        if filled_width > 0:
+            bar_background.add_children([
+                RectangularArea(
+                    filled_width,
+                    const.PROGRESS_BAR_HEIGHT,
+                    self.__bar_color,
+                    const.PROGRESS_BAR_CORNER_RADIUS,
+                )
+            ])
+
+        self.__container.clear_children()
+        self.__container.add_children([progress_text, bar_background])
 
 
 def _build_progress_container() -> FlexBox:
@@ -76,42 +84,28 @@ def _build_progress_container() -> FlexBox:
 
 def _build_progress_section(
     container: FlexBox,
-    provider: Progress,
+    get_progress: Callable[[], float],
     label: str,
     bar_color: str,
     start_condition: Callable[[], bool],
-    start_action: Callable[[], None],
+    start_action: Callable[[], object],
 ) -> tuple[Listener, Listener]:
+    renderer = _ProgressRenderer(container, get_progress, label, bar_color)
+
     begin_listener = Listener(
         start_condition,
         lambda: Thread(target=start_action, daemon=True).start(),
         listen_once=True,
     )
 
-    progress_listener = Listener(
-        lambda: True,
-        lambda: _update_progress(container, provider, label, bar_color),
-    )
+    progress_listener = Listener(renderer.has_changed, renderer.render)
 
     return begin_listener, progress_listener
 
 
-def loading_menu_setup(**parameters: int) -> Window:
+def loading_menu_setup(parameters: HnswParameters) -> Window:
 
-    builder_param_keys = set(inspect.signature(HnswBuilder).parameters.keys())
-    tester_param_key = set(inspect.signature(HnswTester).parameters.keys())
-
-    builder_params = {k: v for k,
-                      v in parameters.items() if k in builder_param_keys}
-    tester_params = {k: v for k, v in parameters.items()
-                     if k in tester_param_key}
-
-    hnsw_builder = HnswBuilder(DEFAULT_DATABASE_PATH,
-                               **builder_params)
-
-    hnsw_tester = HnswTester(DEFAULT_DATABASE_PATH,
-                             DEFAULT_TEST_RESULTS_PATH,
-                             **tester_params)
+    hnsw = Hnsw(parameters, DEFAULT_DATABASE_PATH, DEFAULT_TEST_RESULTS_PATH)
 
     base_layer = loading_menu.add_layer()
 
@@ -129,24 +123,24 @@ def loading_menu_setup(**parameters: int) -> Window:
 
     begin_training, training_progress_bar = _build_progress_section(
         training_container,
-        hnsw_builder,
+        hnsw.get_train_progress,
         "Training",
         const.TRAINING_BAR_COLOR,
         lambda: True,
-        hnsw_builder.build,
+        hnsw.train,
     )
 
     begin_testing, testing_progress_bar = _build_progress_section(
         testing_container,
-        hnsw_tester,
+        hnsw.get_test_progress,
         "Testing",
         const.TESTING_BAR_COLOR,
-        hnsw_builder.is_done,
-        hnsw_tester.run,
+        hnsw.is_train_done,
+        hnsw.test,
     )
 
     progress_finished = Listener(
-        hnsw_tester.is_done,
+        hnsw.is_test_done,
         loading_menu.close,
         listen_once=True
     )

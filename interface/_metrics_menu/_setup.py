@@ -1,108 +1,123 @@
 import json
-from typing import Callable, Final
-
+from typing import Any, Callable, Final
+from desklab import Color, FlexBox, Text, Window
+from interface._constants import (BASE_COLOR, DEFAULT_FONT,
+                                  DEFAULT_TEST_RESULTS_PATH, WINDOW_WIDTH)
+from interface._utils import build_header, create_button_with_text
 from . import _constants as const
-from desklab import FlexBox, Text, Window
-from interface._utils import create_button_with_text, build_header
-from interface._constants import WINDOW_WIDTH, BASE_COLOR, DEFAULT_FONT, DEFAULT_TEST_RESULTS_PATH
-
-
 metrics_menu: Final[Window] = Window()
 
 
-def _build_accuracy_card(spec: const.AccuracyCardSpec) -> FlexBox:
-    card = FlexBox(
-        const.ACCURACY_CARD_WIDTH, const.ACCURACY_CARD_HEIGHT,
-        padding=const.ACCURACY_CARD_PADDING,
-        space_between=const.ACCURACY_CARD_INNER_SPACE_BETWEEN,
-        corners_radius=spec.corners_radius,
-        color=spec.accent_color,
-    )
+def _load_results() -> dict[str, Any]:
+    try:
+        with DEFAULT_TEST_RESULTS_PATH.open(mode="r", encoding="utf-8") as file:
+            return json.load(file)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
 
-    label_text = Text(spec.label, DEFAULT_FONT.copy(
-        size=const.ACCURACY_LABEL_FONT_SIZE), const.ACCURACY_TEXT_COLOR)
-    value_text = Text(spec.value, DEFAULT_FONT.copy(
-        size=const.ACCURACY_VALUE_FONT_SIZE), const.ACCURACY_TEXT_COLOR)
-    card.add_children([label_text, value_text])
 
+def _format_field(field: const.ResultField, source: dict[str, Any]) -> str:
+    value = source.get(field.key)
+    if value is None:
+        return const.DEFAULT_METRIC_VALUE
+    return field.format_value(value)
+
+
+def _build_half(text: str, font_size: int, width: int,
+                color: Color | tuple[int, ...],
+                corners_radius: tuple[int, int, int, int],
+                horizontal_alignment: str,
+                padding: int | tuple[int, ...]) -> FlexBox:
+    half = FlexBox(width, const.CARD_HEIGHT, padding,
+                   corners_radius=corners_radius,
+                   horizontal_alignment=horizontal_alignment,
+                   color=color)
+    half.add_children(
+        Text(text, DEFAULT_FONT.copy(size=font_size), const.TEXT_COLOR))
+    return half
+
+
+def _build_card(field: const.ResultField, source: dict[str, Any]) -> FlexBox:
+    value_color = (field.accent_color
+                   or BASE_COLOR.lightened(const.VALUE_BOX_COLOR_LIGHTEN))
+    card = FlexBox(const.CARD_WIDTH, const.CARD_HEIGHT,
+                   0, 0, "ROW", color=BASE_COLOR)
+    card.add_children([
+        _build_half(field.label, const.LABEL_FONT_SIZE, const.LABEL_BOX_WIDTH,
+                    BASE_COLOR.lightened(const.LABEL_BOX_COLOR_LIGHTEN),
+                    const.LABEL_BOX_CORNERS_RADIUS, "LEFT", (0, 0, 0, 10)),
+        _build_half(_format_field(field, source), const.VALUE_FONT_SIZE,
+                    const.VALUE_BOX_WIDTH, value_color,
+                    const.VALUE_BOX_CORNERS_RADIUS, "CENTER", 0),
+    ])
     return card
 
 
-def _load_verified_accuracy() -> str:
-    try:
-        with DEFAULT_TEST_RESULTS_PATH.open(mode="r", encoding="utf-8") as file:
-            data = json.load(file)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return const.DEFAULT_METRIC_VALUE
+def _build_action_row(open_confusion_matrix: Callable[[], None]) -> FlexBox:
+    row = FlexBox(const.CARD_WIDTH, const.CARD_HEIGHT, 0,
+                  const.CARDS_AREA_SPACE_BETWEEN, "ROW",
+                  color=BASE_COLOR)
+    row.add_children([
+        create_button_with_text(
+            const.CONFUSION_MATRIX_BUTTON_WIDTH, const.CARD_HEIGHT,
+            const.CONFUSION_MATRIX_BUTTON_COLOR,
+            const.CONFUSION_MATRIX_BUTTON_TEXT,
+            corners_radius=const.ACTION_BUTTON_CORNERS_RADIUS,
+            font_size=const.ACTION_BUTTON_FONT_SIZE,
+            action=open_confusion_matrix,
+        ),
+        create_button_with_text(
+            const.RETURN_BUTTON_WIDTH, const.CARD_HEIGHT,
+            const.RETURN_BUTTON_COLOR, const.RETURN_BUTTON_TEXT,
+            corners_radius=const.ACTION_BUTTON_CORNERS_RADIUS,
+            font_size=const.ACTION_BUTTON_FONT_SIZE,
+            action=metrics_menu.close,
+        ),
+    ])
+    return row
 
-    return f"{data['acuracy'] * 100:.2f}%"
 
+def _build_container(title: str, rows: list[FlexBox]) -> FlexBox:
+    container = FlexBox(const.CONTAINER_WIDTH, const.CONTAINER_HEIGHT,
+                        corners_radius=const.CONTAINER_CORNERS_RADIUS,
+                        color=BASE_COLOR)
 
-def _build_buttons_container(
-    width: int,
-    height: int,
-    verified_accuracy: str,
-    open_confusion_matrix: Callable[[], None],
-) -> FlexBox:
-    container = FlexBox(
-        width, height, const.BUTTONS_CONTAINER_PADDING,
-        space_between=const.BUTTONS_CONTAINER_SPACE_BETWEEN,
-        corners_radius=const.BUTTONS_CONTAINER_CORNERS_RADIUS,
-        color=BASE_COLOR,
-    )
+    title_bar = FlexBox(const.CONTAINER_WIDTH, const.TITLE_BAR_HEIGHT,
+                        corners_radius=const.TITLE_CORNERS_RADIUS,
+                        color=BASE_COLOR.lightened(const.TITLE_BAR_COLOR_LIGHTEN))
+    title_bar.add_children(
+        Text(title, DEFAULT_FONT.copy(size=const.TITLE_FONT_SIZE),
+             const.TEXT_COLOR))
 
-    verified_card = _build_accuracy_card(
-        const.AccuracyCardSpec(
-            const.VERIFIED_ACCURACY_LABEL, verified_accuracy,
-            BASE_COLOR.lightened(const.BODY_COLOR_LIGHTEN).get_tuple(),
-            const.VERIFIED_ACCURACY_CORNERS_RADIUS,
-        )
-    )
+    cards_area = FlexBox(const.CONTAINER_WIDTH, const.CARDS_AREA_HEIGHT,
+                         const.CARDS_AREA_PADDING,
+                         const.CARDS_AREA_SPACE_BETWEEN,
+                         corners_radius=const.CARDS_AREA_CORNERS_RADIUS,
+                         color=BASE_COLOR)
+    cards_area.add_children(rows)  # type: ignore
 
-    practical_card = _build_accuracy_card(
-        const.AccuracyCardSpec(
-            const.PRACTICAL_ACCURACY_LABEL, const.DEFAULT_METRIC_VALUE,
-            BASE_COLOR.lightened(const.BODY_COLOR_LIGHTEN).get_tuple(),
-            const.PRACTICAL_ACCURACY_CORNERS_RADIUS,
-        )
-    )
-
-    confusion_matrix_button = create_button_with_text(
-        const.ACTION_BUTTON_WIDTH, const.ACTION_BUTTON_HEIGHT,
-        const.CONFUSION_MATRIX_BUTTON_COLOR, const.CONFUSION_MATRIX_BUTTON_TEXT,
-        corners_radius=const.CONFUSION_MATRIX_BUTTON_CORNERS_RADIUS,
-        font_size=const.ACTION_BUTTON_FONT_SIZE, action=open_confusion_matrix,
-    )
-
-    return_button = create_button_with_text(
-        const.ACTION_BUTTON_WIDTH, const.ACTION_BUTTON_HEIGHT,
-        const.RETURN_BUTTON_COLOR, const.RETURN_BUTTON_TEXT,
-        corners_radius=const.RETURN_BUTTON_CORNERS_RADIUS,
-        font_size=const.ACTION_BUTTON_FONT_SIZE, action=metrics_menu.close,
-    )
-
-    container.add_children(
-        [verified_card, practical_card, confusion_matrix_button, return_button])
-
+    container.add_children([title_bar, cards_area])
     return container
 
 
 def metrics_menu_setup(confusion_matrix_menu: Window) -> Window:
-    base_layer = metrics_menu.add_layer()
+    results = _load_results()
+    parameters: dict[str, Any] = results.get("parameters", {})
 
-    header = build_header(WINDOW_WIDTH)
-    body = FlexBox(WINDOW_WIDTH, const.BODY_HEIGHT,
+    parameter_rows = [_build_card(field, parameters)
+                      for field in const.PARAMETER_FIELDS]
+    metric_rows = [_build_card(field, results)
+                   for field in const.METRIC_FIELDS]
+    metric_rows.append(_build_action_row(confusion_matrix_menu.open))
+
+    body = FlexBox(WINDOW_WIDTH, const.BODY_HEIGHT, const.BODY_PADDING,
+                   const.CONTAINERS_SPACE_BETWEEN, "ROW",
                    color=BASE_COLOR.lightened(const.BODY_COLOR_LIGHTEN))
+    body.add_children([
+        _build_container(const.PARAMETERS_TITLE, parameter_rows),
+        _build_container(const.METRICS_TITLE, metric_rows),
+    ])
 
-    verified_accuracy = _load_verified_accuracy()
-
-    buttons_container = _build_buttons_container(
-        const.BUTTONS_CONTAINER_WIDTH,
-        const.BUTTONS_CONTAINER_HEIGHT,
-        verified_accuracy,
-        confusion_matrix_menu.open,
-    )
-    body.add_children(buttons_container)
-
-    base_layer.add_children([header, body])
+    base_layer = metrics_menu.add_layer()
+    base_layer.add_children([build_header(WINDOW_WIDTH), body])
     return metrics_menu

@@ -11,11 +11,11 @@ class Position(int):
     def __calculate(cls, image: np.ndarray, image_sections: int, luminance_threshold: int) -> int:
         binary = image > luminance_threshold
         cropped_binary = cls.__crop_to_content(binary)
-        normalized_binary = cls.__normalize_shape(cropped_binary,
-                                                  (image_sections, image_sections))
-        bits = "".join("1" if bit else "0"
-                       for bit in normalized_binary.ravel())
-        return int("1" + bits, 2)
+        normalized = cls.__normalize_shape(cropped_binary,
+                                           (image_sections, image_sections))
+        bit_text = (normalized.ravel().astype(
+            np.uint8) + 48).tobytes().decode("ascii")
+        return int("1" + bit_text, 2)
 
     @staticmethod
     def __crop_to_content(binary: np.ndarray) -> np.ndarray:
