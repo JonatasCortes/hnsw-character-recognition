@@ -1,3 +1,5 @@
-from src.interface import MAIN_MENU
+from interface import MAIN_MENU
 
-MAIN_MENU.open()
+
+if __name__ == "__main__":
+    MAIN_MENU.open()

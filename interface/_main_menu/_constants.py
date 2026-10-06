@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Callable, Final
-from src.interface._constants import WINDOW_HEIGHT, WINDOW_WIDTH, HEADER_HEIGHT
+from interface._constants import WINDOW_HEIGHT, WINDOW_WIDTH, HEADER_HEIGHT
 
 BODY_COLOR_LIGHTEN: Final[int] = 20
 BODY_HEIGHT: Final[int] = WINDOW_HEIGHT - HEADER_HEIGHT

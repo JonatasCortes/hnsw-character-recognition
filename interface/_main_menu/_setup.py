@@ -1,8 +1,8 @@
 from . import _constants as const
 from typing import Any, Callable, Final
 from desklab import FlexBox, Window
-from src.interface._utils import create_button_with_text, build_header
-from src.interface._constants import WINDOW_WIDTH, BASE_COLOR
+from interface._utils import create_button_with_text, build_header
+from interface._constants import WINDOW_WIDTH, BASE_COLOR
 
 main_menu: Final[Window] = Window()
 

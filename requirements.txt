@@ -1,4 +1,8 @@
-desklab==0.1.10
+certifi==2026.7.22
+charset-normalizer==3.4.9
+desklab==0.1.16
+idna==3.18
+numpy==2.5.2
 pygame==2.6.1
 pynput==1.8.1
 pyobjc-core==12.1
@@ -7,4 +11,6 @@ pyobjc-framework-Cocoa==12.1
 pyobjc-framework-CoreText==12.1
 pyobjc-framework-Quartz==12.1
 pyperclip==1.11.0
+requests==2.34.2
 six==1.17.0
+urllib3==2.7.0
